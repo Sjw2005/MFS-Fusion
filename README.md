@@ -25,7 +25,9 @@ pip install timm
 
 ## Data
 
-<!-- Add your data preparation instructions here -->
+Download the dataset from the provided link:
+
+[https://pan.baidu.com/s/15LzwkowSbawPkJhN7FDP9g?pwd=5awc](https://pan.baidu.com/s/15LzwkowSbawPkJhN7FDP9g?pwd=5awc)
 
 ## Fast Test
 
