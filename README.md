@@ -63,7 +63,7 @@ The training configuration can be adjusted in `config.json`. Key parameters incl
 ## Project Structure
 
 ```
-MyNetFusion1/
+MFS-Fusion/
 ├── train.py                 # Training script
 ├── test_unet.py            # Testing script
 ├── config.json             # Configuration file
