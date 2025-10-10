@@ -11,7 +11,7 @@ import time
 import sys
 # from Unet_lednet_simplify.unet_mago_simplify import unet as net
 # from Net import MyNet as net
-from Net.MVTNet import MyNet as net
+from Net.MyNet import MyNet as net
 from utils import utils_image as util
 from data.dataloder import Dataset as D
 from torch.utils.data import DataLoader
