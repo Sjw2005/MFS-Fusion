@@ -1,6 +1,6 @@
 # MFS-Fusion（ESWA2026)
 MFS-Fusion: Mamba-Integrated Deep Multi-Modal Image Fusion Framework with Multi-Scale Fourier Enhancement and Spatial Calibration
-[Paper Link](https://www.sciencedirect.com/science/article/abs/pii/S095741742503670X)
+（[Paper Link](https://www.sciencedirect.com/science/article/abs/pii/S095741742503670X)）
 ## Environment Setup
 
 Create and activate a new conda environment:
