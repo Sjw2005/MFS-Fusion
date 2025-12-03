@@ -1,5 +1,6 @@
-# MFS-Fusion
+# MFS-Fusion（ESWA2026)
 MFS-Fusion: Mamba-Integrated Deep Multi-Modal Image Fusion Framework with Multi-Scale Fourier Enhancement and Spatial Calibration
+[Paper Link](https://www.sciencedirect.com/science/article/abs/pii/S095741742503670X)
 ## Environment Setup
 
 Create and activate a new conda environment:
@@ -103,3 +104,18 @@ python test_unet.py
 - PyTorch
 - CUDA (recommended for GPU acceleration)
 - See the environment setup section for the complete dependency list
+
+## Citation
+
+If you find our work useful in your research, please consider citing:
+
+```bibtex
+@article{chen2025mfs,
+  title={MFS-Fusion: Mamba-Integrated Deep Multi-Modal Image Fusion Framework with Multi-Scale Fourier Enhancement and Spatial Calibration},
+  author={Chen, Tao and Wang, Chuang and Zhang, Yuanpeng and Xia, Kaijian and Qian, Pengjiang},
+  journal={Expert Systems with Applications},
+  pages={130054},
+  year={2025},
+  publisher={Elsevier}
+}
+```
