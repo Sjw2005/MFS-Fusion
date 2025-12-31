@@ -110,12 +110,13 @@ python test_unet.py
 If you find our work useful in your research, please consider citing:
 
 ```bibtex
-@article{chen2025mfs,
-  title={MFS-Fusion: Mamba-Integrated Deep Multi-Modal Image Fusion Framework with Multi-Scale Fourier Enhancement and Spatial Calibration},
-  author={Chen, Tao and Wang, Chuang and Zhang, Yuanpeng and Xia, Kaijian and Qian, Pengjiang},
-  journal={Expert Systems with Applications},
-  pages={130054},
+@ARTICLE{11300783,
+  author={Sun, Yingjie and Yao, Jian and Chen, Tao and Xia, Kaijian and Jiang, Yizhang and Qian, Pengjiang},
+  journal={IEEE Transactions on Fuzzy Systems}, 
+  title={Adaptive Fuzzy-Convolution and TSK-Guided Attention for Interpretable EEG MI Decoding}, 
   year={2025},
-  publisher={Elsevier}
-}
+  volume={},
+  number={},
+  pages={1-16},
+  doi={10.1109/TFUZZ.2025.3643920}}
 ```
