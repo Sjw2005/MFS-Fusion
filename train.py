@@ -108,13 +108,15 @@ def main(json_path='config.json'):
     model = define_Model(opt)
     model.init_train()
 
-
+    # train loop
     if opt['datasets']['dataset_type'] in ['mef_GT', 'mff_GT']:
         need_GT = True
     else:
         need_GT = False
     for epoch in range(300):  # keep running
         for i, train_data in enumerate(train_loader):
+            # train_data['A']/train_data['B'] from DataLoader:
+            # [B, 1, H_size, H_size], default [2, 1, 256, 256]
 
             model.update_learning_rate(epoch)
             model.feed_data(train_data, need_GT=need_GT)
@@ -141,15 +143,24 @@ def main(json_path='config.json'):
 
                 model.feed_data(test_data, phase='test')
                 A_image,B_image,fusion_image = model.test()
+                # Test tensors are batched with batch_size=1:
+                # A_image/B_image/fusion_image: [1, 1, H, W]
                 fusion_loss, loss_gradient, loss_l1 = testloss(A_image,B_image, fusion_image)
                 loss += fusion_loss
                 visuals = model.current_visuals(need_H=need_GT)
                     # E_img = util.tensor2uint(visuals['E'])
                 img=visuals['E']
+                # visuals['E'] is one sample without batch dim:
+                # img: [1, H, W]
                 E_img = img.data.squeeze().float().clamp_(0, 1).cpu().numpy()
+                # squeeze() removes channel dim for grayscale output:
+                # E_img: [H, W] (if grayscale) or [C, H, W] (if multi-channel)
                 if E_img.ndim == 3:
                     E_img = np.transpose(E_img, (1, 2, 0))
+                    # CHW -> HWC when tensor is multi-channel
                 E_img=np.uint8((E_img*255.0).round())
+                # Final saved array:
+                # E_img: [H, W] uint8 (grayscale) or [H, W, C] uint8
                 save_img_path = os.path.join(img_dir, '{:s}.png'.format(img_name))
                 util.imsave(E_img, save_img_path)
             a_loss=loss / idx

@@ -42,6 +42,8 @@ class Dataset(data.Dataset):
         img_A = np.expand_dims(img_A, axis=2)
         img_B = cv2.imread(B_path,0)
         img_B = np.expand_dims(img_B, axis=2)
+        # After loading grayscale image and channel expand:
+        # img_A/img_B: [H, W, 1], dtype=uint8, value range [0,255]
 
         # print('img.shape',img_A.shape,img_B.shape)
 
@@ -52,18 +54,28 @@ class Dataset(data.Dataset):
 
             patch_A = img_A[rnd_h:rnd_h + self.patch_size, rnd_w:rnd_w + self.patch_size,:]
             patch_B = img_B[rnd_h:rnd_h + self.patch_size, rnd_w:rnd_w + self.patch_size,:]
+            # Random crop keeps single channel:
+            # patch_A/patch_B: [patch_size, patch_size, 1] (default patch_size=256)
             mode = random.randint(0,7)
             patch_A, patch_B = util.augment_img(patch_A, mode=mode), util.augment_img(patch_B, mode=mode)
+            # Data augmentation (flip/rotate) keeps shape unchanged:
+            # patch_A/patch_B: [patch_size, patch_size, 1]
             img_A = torch.from_numpy(np.ascontiguousarray(patch_A)).permute(2, 0, 1).float().div(255.)
             img_B = torch.from_numpy(np.ascontiguousarray(patch_B)).permute(2, 0, 1).float().div(255.)
+            # HWC -> CHW and normalize to [0,1]:
+            # img_A/img_B: [1, patch_size, patch_size] (float32)
 
             return {'A': img_A, 'B': img_B, 'A_path': A_path, 'B_path': B_path}
 
         else:
             img_A = np.float32(img_A/255.)
             img_B = np.float32(img_B/255.)
+            # In test phase, full image resolution is preserved:
+            # img_A/img_B: [H, W, 1] (float32)
             img_A = torch.from_numpy(np.ascontiguousarray(img_A)).permute(2, 0, 1).float()
             img_B = torch.from_numpy(np.ascontiguousarray(img_B)).permute(2, 0, 1).float()
+            # Convert to model input format:
+            # img_A/img_B: [1, H, W]
 
             return {'A': img_A, 'B': img_B, 'A_path': A_path, 'B_path': B_path}
 
