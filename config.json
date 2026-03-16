@@ -1,7 +1,7 @@
 {
     "task": "Fusion" //  classical image sr for x2/x3/x4. root/task/images-models-options
     ,
-    "model": "plain2" // "plain" | "plain2" if two inputs(ir_vi)
+    "model": "plain" // "plain" | "plain2" if two inputs(ir_vi)
     ,
     "gpu_ids": [
       0
