@@ -117,6 +117,11 @@
       "checkpoint_save": 1360 // for saving model
       ,
       "checkpoint_print": 136 // for print////107/
+      ,
+      "save_image_every_epochs": 50,
+      "save_model_every_steps": 3000,
+      "tensorboard_scalar_every_steps": 136,
+      "tensorboard_image_every_steps": 0
 
 //      "checkpoint_test": 136 // for testing
 //      ,

@@ -10,6 +10,7 @@ from models.model_base import ModelBase
 from models.loss import CharbonnierLoss
 from models.loss_ssim import SSIMLoss
 import os
+import json
 
 from torch.utils.tensorboard import SummaryWriter
 from utils.utils_model import test_mode
@@ -36,6 +37,9 @@ class ModelPlain(ModelBase):
         tensorboard_path = os.path.join(self.opt['path']['root'], 'Tensorboard')
         os.makedirs(tensorboard_path, exist_ok=True)
         self.writer = SummaryWriter(tensorboard_path)
+        self.tb_scalar_every_steps = max(1, int(self.opt_train.get('tensorboard_scalar_every_steps', 100)))
+        self.tb_image_every_steps = int(self.opt_train.get('tensorboard_image_every_steps', 0))
+        self._write_tensorboard_config()
 
     """
     # ----------------------------------------
@@ -87,12 +91,66 @@ class ModelPlain(ModelBase):
     # ----------------------------------------
     # save model / optimizer(optional)
     # ----------------------------------------
-    def save(self, iter_label):
-        self.save_network(self.save_dir, self.netG, 'Best', iter_label)
+    def save(self, label):
+        if str(label).lower() == 'best':
+            self.save_network(self.save_dir, self.netG, 'Best', label)
+        else:
+            self.save_network(self.save_dir, self.netG, str(label), label)
         # if self.opt_train['E_decay'] > 0:
         #     self.save_network(self.save_dir, self.netE, 'E', iter_label)
         # if self.opt_train['G_optimizer_reuse']:
         #     self.save_optimizer(self.save_dir, self.G_optimizer, 'optimizerG', iter_label)
+
+    def _write_tensorboard_config(self):
+        try:
+            self.writer.add_text('config/train', json.dumps(self.opt['train'], indent=2), 0)
+        except Exception:
+            pass
+
+    def _log_tensorboard_scalars(self, current_step, G_lossfn_type):
+        self.writer.add_scalar('train/G_loss', self.log_dict['G_loss'], current_step)
+        if G_lossfn_type in ['loe', 'mef', 'vif', 'mff', 'gt', 'nir', 'med']:
+            self.writer.add_scalar('train/Text_loss', self.log_dict['Text_loss'], current_step)
+            self.writer.add_scalar('train/Int_loss', self.log_dict['Int_loss'], current_step)
+
+    def _log_tensorboard_images(self, G_lossfn_type, current_step):
+        if self.tb_image_every_steps <= 0 or current_step % self.tb_image_every_steps != 0:
+            return
+        if G_lossfn_type == 'mef':
+            self.writer.add_image('under_image[0]', self.A[0], current_step)
+            self.writer.add_image('under_image[1]', self.A[-1], current_step)
+            self.writer.add_image('over_image[0]', self.B[0], current_step)
+            self.writer.add_image('over_image[1]', self.B[-1], current_step)
+            self.writer.add_image('fused_image[0]', self.E[0], current_step)
+            self.writer.add_image('fused_image[1]', self.E[-1], current_step)
+        elif G_lossfn_type == 'vif':
+            self.writer.add_image('ir_image[0]', self.A[0], current_step)
+            self.writer.add_image('ir_image[1]', self.A[-1], current_step)
+            self.writer.add_image('vi_image[0]', self.B[0], current_step)
+            self.writer.add_image('vi_image[1]', self.B[-1], current_step)
+            self.writer.add_image('fused_image[0]', self.E[0], current_step)
+            self.writer.add_image('fused_image[1]', self.E[-1], current_step)
+        elif G_lossfn_type == 'mff':
+            self.writer.add_image('near_image[0]', self.A[0], current_step)
+            self.writer.add_image('near_image[1]', self.A[-1], current_step)
+            self.writer.add_image('far_image[0]', self.B[0], current_step)
+            self.writer.add_image('far_image[1]', self.B[-1], current_step)
+            self.writer.add_image('fused_image[0]', self.E[0], current_step)
+            self.writer.add_image('fused_image[1]', self.E[-1], current_step)
+        elif G_lossfn_type == 'nir':
+            self.writer.add_image('Nir_image[0]', self.A[0], current_step)
+            self.writer.add_image('Nir_image[1]', self.A[-1], current_step)
+            self.writer.add_image('RGB_image[0]', self.B[0], current_step)
+            self.writer.add_image('RGB_image[1]', self.B[-1], current_step)
+            self.writer.add_image('fused_image[0]', self.E[0], current_step)
+            self.writer.add_image('fused_image[1]', self.E[-1], current_step)
+        elif G_lossfn_type == 'med':
+            self.writer.add_image('pet_image[0]', self.A[0], current_step)
+            self.writer.add_image('pet_image[1]', self.A[-1], current_step)
+            self.writer.add_image('MRI_image[0]', self.B[0], current_step)
+            self.writer.add_image('MRI_image[1]', self.B[-1], current_step)
+            self.writer.add_image('fused_image[0]', self.E[0], current_step)
+            self.writer.add_image('fused_image[1]', self.E[-1], current_step)
 
     # ----------------------------------------
     # define loss
@@ -229,50 +287,15 @@ class ModelPlain(ModelBase):
 
         # self.log_dict['G_loss'] = G_loss.item()/self.E.size()[0]  # if `reduction='sum'`
         self.log_dict['G_loss'] = G_loss.item()
-        if G_lossfn_type in ['loe', 'mef', 'vif', 'mff', 'gt', 'nir', 'med']:
+        if G_lossfn_type in ['mef', 'vif', 'mff', 'nir', 'med']:
             self.log_dict['Text_loss'] = loss_text.item()
             self.log_dict['Int_loss'] = loss_int.item()
 
         if self.opt_train['E_decay'] > 0:
             self.update_E(self.opt_train['E_decay'])
-        # ----------------------------------------
-        # write tensorboard
-        # ----------------------------------------
-        if G_lossfn_type == 'mef':
-            self.writer.add_image('under_image[0]', self.A[0])
-            self.writer.add_image('under_image[1]', self.A[-1])
-            self.writer.add_image('over_image[0]', self.B[0])
-            self.writer.add_image('over_image[1]', self.B[-1])
-            self.writer.add_image('fused_image[0]', self.E[0])
-            self.writer.add_image('fused_image[1]', self.E[-1])
-        elif G_lossfn_type == 'vif':
-            self.writer.add_image('ir_image[0]', self.A[0])
-            self.writer.add_image('ir_image[1]', self.A[1])
-            self.writer.add_image('vi_image[0]', self.B[0])
-            self.writer.add_image('vi_image[1]', self.B[1])
-            self.writer.add_image('fused_image[0]', self.E[0])
-            self.writer.add_image('fused_image[1]', self.E[-1])
-        elif G_lossfn_type == 'mff':
-            self.writer.add_image('near_image[0]', self.A[0])
-            self.writer.add_image('near_image[1]', self.A[-1])
-            self.writer.add_image('far_image[0]', self.B[0])
-            self.writer.add_image('far_image[1]', self.B[-1])
-            self.writer.add_image('fused_image[0]', self.E[0])
-            self.writer.add_image('fused_image[1]', self.E[-1])
-        elif G_lossfn_type == 'nir':
-            self.writer.add_image('Nir_image[0]', self.A[0])
-            self.writer.add_image('Nir_image[1]', self.A[-1])
-            self.writer.add_image('RGB_image[0]', self.B[0])
-            self.writer.add_image('RGB_image[1]', self.B[-1])
-            self.writer.add_image('fused_image[0]', self.E[0])
-            self.writer.add_image('fused_image[1]', self.E[-1])
-        elif G_lossfn_type == 'med':
-            self.writer.add_image('pet_image[0]', self.A[0])
-            self.writer.add_image('pet_image[1]', self.A[-1])
-            self.writer.add_image('MRI_image[0]', self.B[0])
-            self.writer.add_image('MRI_image[1]', self.B[-1])
-            self.writer.add_image('fused_image[0]', self.E[0])
-            self.writer.add_image('fused_image[1]', self.E[-1])
+        if current_step % self.tb_scalar_every_steps == 0:
+            self._log_tensorboard_scalars(current_step, G_lossfn_type)
+        self._log_tensorboard_images(G_lossfn_type, current_step)
 
     # ----------------------------------------
     # test / inference

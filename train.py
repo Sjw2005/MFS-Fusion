@@ -107,9 +107,12 @@ def main(json_path='config.json'):
     global best_loss
     model = define_Model(opt)
     model.init_train()
+    current_step = 0
+    save_image_every_epochs = max(1, int(opt['train'].get('save_image_every_epochs', 50)))
+    save_model_every_steps = max(1, int(opt['train'].get('save_model_every_steps', 3000)))
 
     # train loop
-    if opt['datasets']['dataset_type'] in ['mef_GT', 'mff_GT']:
+    if opt['datasets']['train']['dataset_type'] in ['mef_GT', 'mff_GT']:
         need_GT = True
     else:
         need_GT = False
@@ -118,20 +121,25 @@ def main(json_path='config.json'):
             # train_data['A']/train_data['B'] from DataLoader:
             # [B, 1, H_size, H_size], default [2, 1, 256, 256]
 
+            current_step += 1
             model.update_learning_rate(epoch)
             model.feed_data(train_data, need_GT=need_GT)
-            model.optimize_parameters(epoch)
+            model.optimize_parameters(current_step)
+            if opt['rank'] == 0 and current_step % save_model_every_steps == 0:
+                logger.info('Saving model at step {:d}.'.format(current_step))
+                model.save(current_step)
         logs = model.current_log()  # such as loss
         message = '<epoch:{:3d}, lr:{:.3e}> '.format(epoch, model.current_learning_rate())
         for k, v in logs.items():  # merge log information into message
                 message += '{:s}: {:.3e} '.format(k, v)
-        logger.info(message)
+        if opt['rank'] == 0:
+            logger.info(message)
 
-        if epoch % 1 == 0:
+        if opt['rank'] == 0 and (epoch + 1) % save_image_every_epochs == 0:
 
             avg_psnr = 0.0
             idx = 0
-            img_dir = os.path.join(opt['path']['images'], '{:d}'.format(epoch))
+            img_dir = os.path.join(opt['path']['images'], '{:d}'.format(epoch + 1))
             loss = 0.0
             for test_data in test_loader:
                 idx += 1
@@ -166,12 +174,9 @@ def main(json_path='config.json'):
             a_loss=loss / idx
             if a_loss<best_loss:
                 best_loss = a_loss
-                print("epoch:{} Best loss {} :".format(epoch, best_loss))
-                save_dir = opt['path']['models']
-                save_filename = '{}_{}.pth'.format(epoch, 'GG')
-                save_path = os.path.join(save_dir, save_filename)
-                # logger.info('Saving the model. Save path is:{}'.format(save_path))
-                model.save(epoch)
+                print("epoch:{} Best loss {} :".format(epoch + 1, best_loss))
+                logger.info('Saving best model at epoch {:d}.'.format(epoch + 1))
+                model.save('best')
 
 
 

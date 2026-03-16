@@ -141,6 +141,18 @@ def parse(opt_path, is_train=True):
         opt['train']['E_decay'] = 0
 
     # ----------------------------------------
+    # default setting for logging/checkpoints
+    # ----------------------------------------
+    if 'save_image_every_epochs' not in opt['train']:
+        opt['train']['save_image_every_epochs'] = 50
+    if 'save_model_every_steps' not in opt['train']:
+        opt['train']['save_model_every_steps'] = 3000
+    if 'tensorboard_scalar_every_steps' not in opt['train']:
+        opt['train']['tensorboard_scalar_every_steps'] = opt['train'].get('checkpoint_print', 100)
+    if 'tensorboard_image_every_steps' not in opt['train']:
+        opt['train']['tensorboard_image_every_steps'] = 0
+
+    # ----------------------------------------
     # default setting for discriminator
     # ----------------------------------------
     if 'netD' in opt:
