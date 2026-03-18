@@ -1,6 +1,8 @@
 # MFS-Fusion（ESWA2026)
+
 MFS-Fusion: Mamba-Integrated Deep Multi-Modal Image Fusion Framework with Multi-Scale Fourier Enhancement and Spatial Calibration
 （[Paper Link](https://www.sciencedirect.com/science/article/abs/pii/S095741742503670X)）
+
 ## Environment Setup
 
 Create and activate a new conda environment:
@@ -36,9 +38,11 @@ To quickly test the model and generate results:
 
 ```bash
 python test_unet.py
+tensorboard --logdir=Model/Fusion/Tensorboard --port=6006
+
 ```
 
-Results will be saved in `./results/VIS-IR/` directory.
+zResults will be saved in `./results/VIS-IR/` directory.
 
 **Note:** Make sure the pre-trained model weights are available at `./Model/Fusion/Fusion/models/Best.pth` for testing.
 
@@ -84,6 +88,7 @@ MFS-Fusion/
 ## Usage Examples
 
 ### Training
+
 ```bash
 # Use default configuration
 python train.py
@@ -93,6 +98,7 @@ python train.py --opt your_config.json
 ```
 
 ### Testing
+
 ```bash
 # Test with default settings
 python test_unet.py

@@ -5,6 +5,15 @@
 - Focus first on implementing and validating the P0 and P1 experiment guides under `md/`.
 - Analyze the curated 70-module list and identify additional low-compute modules that fit the current codebase and can improve specific weaknesses without major training/inference overhead.
 
+## Active Task - NaN Stabilization
+- Goal: make a minimal, low-risk patch to reduce `loss=nan` during training.
+- Constraints: keep code changes small, preserve current training pipeline, and prefer config-level enablement where possible.
+- Planned actions:
+  1. Ensure final network output is bounded to `[0, 1]`.
+  2. Remove phase-branch negative-value truncation in `FSDA`.
+  3. Enable gradient clipping in the active training config.
+  4. Keep targeted debug prints so first failing module can be identified quickly if instability remains.
+
 ## Scope
 - Baseline target network: `Net/MyNet.py` with PVTv2 backbone (`MyNet`).
 - Primary docs:

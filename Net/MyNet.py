@@ -12,6 +12,31 @@ import os
 from einops import rearrange
 from mamba_ssm import Mamba
 
+
+def _debug_tensor_stats(tag, tensor):
+    if tensor is None:
+        print(f"[DEBUG][{tag}] tensor is None")
+        return
+    with torch.no_grad():
+        t = tensor.detach()
+        finite_mask = torch.isfinite(t)
+        finite_ratio = finite_mask.float().mean().item()
+        nan_count = torch.isnan(t).sum().item()
+        inf_count = torch.isinf(t).sum().item()
+        if finite_mask.any():
+            finite_t = t[finite_mask]
+            t_min = finite_t.min().item()
+            t_max = finite_t.max().item()
+            t_mean = finite_t.mean().item()
+        else:
+            t_min = float('nan')
+            t_max = float('nan')
+            t_mean = float('nan')
+        print(
+            f"[DEBUG][{tag}] shape={tuple(t.shape)} min={t_min:.6f} max={t_max:.6f} "
+            f"mean={t_mean:.6f} finite_ratio={finite_ratio:.6f} nan={int(nan_count)} inf={int(inf_count)}"
+        )
+
 def custom_complex_normalization(input_tensor, dim=-1):
     # 作用：对复数张量的实部与虚部分别做 softmax，再重新拼回应复数张量。
     # 输入 shape：通常与 attention 分数一致，例如 [B, head, C_per_head, C_per_head]。
@@ -203,7 +228,7 @@ class FSDA(nn.Module):
         self.pha_enhance = nn.Sequential(
             nn.Conv2d(dim, dim, kernel_size=1),
             nn.BatchNorm2d(dim),
-            nn.ReLU(inplace=True),
+            nn.Identity(),
         )
         self.pha_attn = ECALayer(dim)  # 相位谱通道注意力
         self.pha_proj = nn.Conv2d(dim, dim, kernel_size=1)
@@ -216,11 +241,17 @@ class FSDA(nn.Module):
             out: [B, C, H, W] 频域增强后的空间域特征图
         """
         # Step 1: FFT2 变换到频域
+        if not torch.isfinite(x).all():
+            _debug_tensor_stats('FSDA/input', x)
         x_fft = torch.fft.fft2(x, norm='ortho')  # [B, C, H, W] 复数
 
         # Step 2: 显式分解幅度谱和相位谱
         mag = torch.abs(x_fft)           # [B, C, H, W] 实数，幅度
         pha = torch.angle(x_fft)         # [B, C, H, W] 实数，相位（弧度）
+        if not torch.isfinite(mag).all():
+            _debug_tensor_stats('FSDA/mag', mag)
+        if not torch.isfinite(pha).all():
+            _debug_tensor_stats('FSDA/pha', pha)
 
         # Step 3: 幅度谱通道注意力增强（在实数域操作，数学严谨）
         mag_feat = self.mag_enhance(mag)         # Conv1×1 + BN + ReLU
@@ -231,6 +262,10 @@ class FSDA(nn.Module):
         pha_feat = self.pha_enhance(pha)
         pha_feat = self.pha_attn(pha_feat)
         pha_out = self.pha_proj(pha_feat) + pha  # 残差连接
+        if not torch.isfinite(mag_out).all():
+            _debug_tensor_stats('FSDA/mag_out', mag_out)
+        if not torch.isfinite(pha_out).all():
+            _debug_tensor_stats('FSDA/pha_out', pha_out)
 
         # Step 5: 极坐标重建回复数频谱
         # F_out = mag_out * exp(j * pha_out)
@@ -240,6 +275,8 @@ class FSDA(nn.Module):
 
         # Step 6: IFFT2 回到空间域
         out = torch.fft.ifft2(x_fft_enhanced, norm='ortho').real  # 取实部
+        if not torch.isfinite(out).all():
+            _debug_tensor_stats('FSDA/out', out)
 
         return out
 
@@ -666,8 +703,15 @@ class MyNet(nn.Module):
         out = self.dec(fuses[0],fuses[1],fuses[2])
         # Decoder restores to full resolution:
         # out: [B, 48, H, W]
+        if not torch.isfinite(out).all():
+            print('[DEBUG] Non-finite tensor detected after decoder in MyNet.forward')
+            _debug_tensor_stats('MyNet/dec_out', out)
         # 与两路浅层短残差相加后送入最后预测头，shape 仍为 [B, 48, H, W]。
         out = self.last(out+short_x+short_y)
+        out = torch.sigmoid(out)
+        if not torch.isfinite(out).all():
+            print('[DEBUG] Non-finite tensor detected at final output in MyNet.forward')
+            _debug_tensor_stats('MyNet/final_out', out)
         # Residual add keeps [B, 48, H, W], last head maps to single channel:
         # final out: [B, 1, H, W]
 

@@ -16,6 +16,31 @@ from torch.utils.tensorboard import SummaryWriter
 from utils.utils_model import test_mode
 from utils.utils_regularizers import regularizer_orth, regularizer_clip
 
+
+def _debug_tensor_stats(tag, tensor):
+    if tensor is None:
+        print(f"[DEBUG][{tag}] tensor is None")
+        return
+    with torch.no_grad():
+        t = tensor.detach()
+        finite_mask = torch.isfinite(t)
+        finite_ratio = finite_mask.float().mean().item()
+        nan_count = torch.isnan(t).sum().item()
+        inf_count = torch.isinf(t).sum().item()
+        if finite_mask.any():
+            finite_t = t[finite_mask]
+            t_min = finite_t.min().item()
+            t_max = finite_t.max().item()
+            t_mean = finite_t.mean().item()
+        else:
+            t_min = float('nan')
+            t_max = float('nan')
+            t_mean = float('nan')
+        print(
+            f"[DEBUG][{tag}] shape={tuple(t.shape)} min={t_min:.6f} max={t_max:.6f} "
+            f"mean={t_mean:.6f} finite_ratio={finite_ratio:.6f} nan={int(nan_count)} inf={int(inf_count)}"
+        )
+
 os.environ["CUDA_VISIBLE_DEVICES"] = '1'
 class ModelPlain(ModelBase):
     """Train with pixel loss"""
@@ -248,6 +273,11 @@ class ModelPlain(ModelBase):
     def optimize_parameters(self, current_step):
         self.G_optimizer.zero_grad()
         self.netG_forward()
+        if not torch.isfinite(self.E).all():
+            print(f"[DEBUG] Step {current_step}: non-finite generator output detected before loss computation")
+            _debug_tensor_stats('ModelPlain/A', self.A)
+            _debug_tensor_stats('ModelPlain/B', self.B)
+            _debug_tensor_stats('ModelPlain/E', self.E)
         G_lossfn_type = self.opt_train['G_lossfn_type']
         ## constructe loss function
         if G_lossfn_type in ['loe', 'gt']:
@@ -258,7 +288,24 @@ class ModelPlain(ModelBase):
             G_loss = self.G_lossfn_weight * total_loss
         else:
             G_loss = self.G_lossfn_weight * self.G_lossfn(self.E, self.GT)
+        if not torch.isfinite(G_loss):
+            print(f"[DEBUG] Step {current_step}: non-finite loss detected")
+            _debug_tensor_stats('ModelPlain/G_loss', G_loss.reshape(1))
+            if G_lossfn_type in ['mef', 'mff', 'vif', 'nir', 'med']:
+                _debug_tensor_stats('ModelPlain/loss_text', loss_text.reshape(1))
+                _debug_tensor_stats('ModelPlain/loss_int', loss_int.reshape(1))
+            raise RuntimeError(f"Non-finite loss encountered at step {current_step}")
         G_loss.backward()
+
+        grad_issue_found = False
+        for name, param in self.netG.named_parameters():
+            if param.grad is not None and not torch.isfinite(param.grad).all():
+                print(f"[DEBUG] Step {current_step}: non-finite gradient detected in parameter {name}")
+                _debug_tensor_stats(f'ModelPlain/grad/{name}', param.grad)
+                grad_issue_found = True
+                break
+        if grad_issue_found:
+            raise RuntimeError(f"Non-finite gradient encountered at step {current_step}")
 
         # ------------------------------------
         # clip_grad
@@ -266,7 +313,7 @@ class ModelPlain(ModelBase):
         # `clip_grad_norm` helps prevent the exploding gradient problem.
         G_optimizer_clipgrad = self.opt_train['G_optimizer_clipgrad'] if self.opt_train['G_optimizer_clipgrad'] else 0
         if G_optimizer_clipgrad > 0:
-            torch.nn.utils.clip_grad_norm_(self.parameters(), max_norm=self.opt_train['G_optimizer_clipgrad'],
+            torch.nn.utils.clip_grad_norm_(self.netG.parameters(), max_norm=self.opt_train['G_optimizer_clipgrad'],
                                            norm_type=2)
 
         self.G_optimizer.step()

@@ -91,7 +91,7 @@
       ,
       "G_optimizer_wd": 0 // weight decay, default 0
       ,
-      "G_optimizer_clipgrad": null // unused
+      "G_optimizer_clipgrad": 1.0 // enable grad clipping to reduce NaN risk
       ,
       "G_optimizer_reuse": true //
       ,
@@ -112,12 +112,7 @@
       ,
       "G_param_strict": true,
       "E_param_strict": true,
-      "checkpoint_test": 1360 // for testing
-      ,
-      "checkpoint_save": 1360 // for saving model
-      ,
-      "checkpoint_print": 136 // for print////107/
-      ,
+      
       "save_image_every_epochs": 50,
       "save_model_every_steps": 3000,
       "tensorboard_scalar_every_steps": 136,

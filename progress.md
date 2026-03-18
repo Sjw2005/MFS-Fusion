@@ -5,9 +5,12 @@
 - Mapped current project architecture to actual code in `Net/MyNet.py`.
 - Confirmed current worktree already contains partial P0 code (`FSDA` integrated in `ASI`).
 - Screened the curated module list and produced an initial shortlist of compatible low-compute modules.
+- Identified active training config in `config.json` and confirmed `G_optimizer_clipgrad` was disabled.
+- Applied minimal NaN-stability changes in model/output path and enabled gradient clipping in config.
 
 ## In Progress
 - Converting document-level guidance into a concrete stage-1 implementation and experiment order.
+- Verifying the minimal NaN-stabilization patch and documenting exact behavior changes.
 
 ## Next Actions
 1. Refactor `ASI`/`MEF`/`MyNet` to expose `use_fsda` and preserve the original branch.
